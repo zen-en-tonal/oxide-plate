@@ -2,82 +2,86 @@
 
 pub mod instruments;
 
-use core::fmt::Debug;
+use core::{fmt::Debug, marker::PhantomData};
 
 use instruments::*;
 
-pub struct PlateBuffers<'a, T> {
-    pub predelay: &'a mut [T],
+pub struct PlateBuffers<T, V> {
+    pub predelay: T,
+    pub prefilter: T,
 
-    pub input_diffusion_1_1: &'a mut [T],
-    pub input_diffusion_1_2: &'a mut [T],
-    pub input_diffusion_2_1: &'a mut [T],
-    pub input_diffusion_2_2: &'a mut [T],
+    pub input_diffusion_1_1: T,
+    pub input_diffusion_1_2: T,
+    pub input_diffusion_2_1: T,
+    pub input_diffusion_2_2: T,
 
-    pub decay_diffusion_1_1: &'a mut [T],
-    pub decay_diffusion_1_2: &'a mut [T],
-    pub decay_diffusion_2_1: &'a mut [T],
-    pub decay_diffusion_2_2: &'a mut [T],
+    pub decay_diffusion_1_1: T,
+    pub decay_diffusion_1_2: T,
+    pub decay_diffusion_2_1: T,
+    pub decay_diffusion_2_2: T,
 
-    pub delay_1: &'a mut [T],
-    pub delay_2: &'a mut [T],
-    pub delay_3: &'a mut [T],
-    pub delay_4: &'a mut [T],
+    pub dumping_1: T,
+    pub dumping_2: T,
+
+    pub delay_1: T,
+    pub delay_2: T,
+    pub delay_3: T,
+    pub delay_4: T,
+
+    pub tank: T,
+
+    pub _t: PhantomData<V>,
 }
 
-impl<'a, T> PlateBuffers<'a, T>
+impl<T, V> PlateBuffers<T, V>
 where
-    T: num_traits::Num + num_traits::Signed + Clone,
+    T: AsMut<[V]>,
+    V: num_traits::Num + num_traits::Signed + Clone,
 {
-    pub fn build(self, params: PlateParams<T>) -> Plate<'a, T> {
-        let mut plate = Plate {
-            predelay: Delay::new(self.predelay),
-            predelay_length: params.predelay,
-            prefilter: IIR::new(),
-            input_diffusion_1_1: APF::new(self.input_diffusion_1_1),
-            input_diffusion_1_2: APF::new(self.input_diffusion_1_2),
-            input_diffusion_2_1: APF::new(self.input_diffusion_2_1),
-            input_diffusion_2_2: APF::new(self.input_diffusion_2_2),
-            tank1: T::zero(),
-            tank2: T::zero(),
-            decay_diffusion_1_1: APF::new(self.decay_diffusion_1_1),
-            decay_diffusion_1_2: APF::new(self.decay_diffusion_1_2),
-            decay_diffusion_2_1: APF::new(self.decay_diffusion_2_1),
-            decay_diffusion_2_2: APF::new(self.decay_diffusion_2_2),
-            damping_1: IIR::new(),
-            damping_2: IIR::new(),
-            delay_1: Delay::new(self.delay_1),
-            delay_2: Delay::new(self.delay_2),
-            delay_3: Delay::new(self.delay_3),
-            delay_4: Delay::new(self.delay_4),
-            decay: T::zero(),
-        };
-        plate.set_params(params);
-
-        plate
+    pub fn build(&mut self) -> Plate<'_, V> {
+        Plate {
+            predelay: Delay::new(self.predelay.as_mut()),
+            predelay_length: 1,
+            prefilter: IIR::new(self.prefilter.as_mut()),
+            input_diffusion_1_1: APF::new(self.input_diffusion_1_1.as_mut()),
+            input_diffusion_1_2: APF::new(self.input_diffusion_1_2.as_mut()),
+            input_diffusion_2_1: APF::new(self.input_diffusion_2_1.as_mut()),
+            input_diffusion_2_2: APF::new(self.input_diffusion_2_2.as_mut()),
+            tank: self.tank.as_mut(),
+            decay_diffusion_1_1: APF::new(self.decay_diffusion_1_1.as_mut()),
+            decay_diffusion_1_2: APF::new(self.decay_diffusion_1_2.as_mut()),
+            decay_diffusion_2_1: APF::new(self.decay_diffusion_2_1.as_mut()),
+            decay_diffusion_2_2: APF::new(self.decay_diffusion_2_2.as_mut()),
+            damping_1: IIR::new(self.dumping_1.as_mut()),
+            damping_2: IIR::new(self.dumping_2.as_mut()),
+            delay_1: Delay::new(self.delay_1.as_mut()),
+            delay_2: Delay::new(self.delay_2.as_mut()),
+            delay_3: Delay::new(self.delay_3.as_mut()),
+            delay_4: Delay::new(self.delay_4.as_mut()),
+            decay: V::zero(),
+        }
     }
 }
 
 pub struct Plate<'a, T> {
     predelay: Delay<'a, T>,
     predelay_length: usize,
-    prefilter: IIR<T, 1>,
+    prefilter: IIR<'a, T, 1>,
 
     input_diffusion_1_1: APF<'a, T>,
     input_diffusion_1_2: APF<'a, T>,
     input_diffusion_2_1: APF<'a, T>,
     input_diffusion_2_2: APF<'a, T>,
 
-    tank1: T,
-    tank2: T,
+    tank: &'a mut [T],
 
     decay_diffusion_1_1: APF<'a, T>,
     decay_diffusion_1_2: APF<'a, T>,
     decay_diffusion_2_1: APF<'a, T>,
     decay_diffusion_2_2: APF<'a, T>,
 
-    damping_1: IIR<T, 1>,
-    damping_2: IIR<T, 1>,
+    damping_1: IIR<'a, T, 1>,
+    damping_2: IIR<'a, T, 1>,
 
     delay_1: Delay<'a, T>,
     delay_2: Delay<'a, T>,
@@ -226,7 +230,7 @@ where
         acc = self.input_diffusion_2_1.tick(acc.clone());
         acc = self.input_diffusion_2_2.tick(acc.clone());
 
-        let mut tank1 = acc.clone() + self.tank1.clone();
+        let mut tank1 = acc.clone() + self.tank[0].clone();
         tank1 = self.decay_diffusion_1_1.tick(tank1.clone());
         self.delay_1.write(tank1.clone());
         tank1 = self.delay_1.read(DELAY_1.try_into().unwrap()).clone();
@@ -237,7 +241,7 @@ where
         tank1 = self.delay_2.read(DELAY_2.try_into().unwrap()).clone();
         tank1 = self.decay.clone() * tank1;
 
-        let mut tank2 = acc.clone() + self.tank2.clone();
+        let mut tank2 = acc.clone() + self.tank[1].clone();
         tank2 = self.decay_diffusion_1_2.tick(tank2.clone());
         self.delay_3.write(tank2.clone());
         tank2 = self.delay_3.read(DELAY_3.try_into().unwrap()).clone();
@@ -248,8 +252,8 @@ where
         tank2 = self.delay_4.read(DELAY_4.try_into().unwrap()).clone();
         tank2 = self.decay.clone() * tank2;
 
-        self.tank1 = tank2;
-        self.tank2 = tank1;
+        self.tank[0] = tank2;
+        self.tank[1] = tank1;
     }
 }
 
@@ -312,35 +316,27 @@ mod tests {
 
     #[test]
     fn burst() {
-        let mut predelay = vec![0.0; 4096];
-        let mut input_diffusion_1_1 = vec![0.0; INPUT_DIFFUSION_1_1 + 1];
-        let mut input_diffusion_1_2 = vec![0.0; INPUT_DIFFUSION_1_2 + 1];
-        let mut input_diffusion_2_1 = vec![0.0; INPUT_DIFFUSION_2_1 + 1];
-        let mut input_diffusion_2_2 = vec![0.0; INPUT_DIFFUSION_2_2 + 1];
-        let mut decay_diffusion_1_1 = vec![0.0; DECAY_DIFFUSION_1_1 + 1];
-        let mut decay_diffusion_1_2 = vec![0.0; DECAY_DIFFUSION_1_2 + 1];
-        let mut decay_diffusion_2_1 = vec![0.0; DECAY_DIFFUSION_2_1 + 1];
-        let mut decay_diffusion_2_2 = vec![0.0; DECAY_DIFFUSION_2_2 + 1];
-        let mut delay_1 = vec![0.0; DELAY_1 + 1];
-        let mut delay_2 = vec![0.0; DELAY_2 + 1];
-        let mut delay_3 = vec![0.0; DELAY_3 + 1];
-        let mut delay_4 = vec![0.0; DELAY_4 + 1];
-        let buffers: PlateBuffers<'_, f64> = PlateBuffers {
-            predelay: predelay.as_mut(),
-            input_diffusion_1_1: input_diffusion_1_1.as_mut(),
-            input_diffusion_1_2: input_diffusion_1_2.as_mut(),
-            input_diffusion_2_1: input_diffusion_2_1.as_mut(),
-            input_diffusion_2_2: input_diffusion_2_2.as_mut(),
-            decay_diffusion_1_1: decay_diffusion_1_1.as_mut(),
-            decay_diffusion_1_2: decay_diffusion_1_2.as_mut(),
-            decay_diffusion_2_1: decay_diffusion_2_1.as_mut(),
-            decay_diffusion_2_2: decay_diffusion_2_2.as_mut(),
-            delay_1: delay_1.as_mut(),
-            delay_2: delay_2.as_mut(),
-            delay_3: delay_3.as_mut(),
-            delay_4: delay_4.as_mut(),
+        let mut buffers = PlateBuffers {
+            predelay: vec![0.0; 4096],
+            input_diffusion_1_1: vec![0.0; INPUT_DIFFUSION_1_1 + 1],
+            input_diffusion_1_2: vec![0.0; INPUT_DIFFUSION_1_2 + 1],
+            input_diffusion_2_1: vec![0.0; INPUT_DIFFUSION_2_1 + 1],
+            input_diffusion_2_2: vec![0.0; INPUT_DIFFUSION_2_2 + 1],
+            decay_diffusion_1_1: vec![0.0; DECAY_DIFFUSION_1_1 + 1],
+            decay_diffusion_1_2: vec![0.0; DECAY_DIFFUSION_1_2 + 1],
+            decay_diffusion_2_1: vec![0.0; DECAY_DIFFUSION_2_1 + 1],
+            decay_diffusion_2_2: vec![0.0; DECAY_DIFFUSION_2_2 + 1],
+            delay_1: vec![0.0; DELAY_1 + 1],
+            delay_2: vec![0.0; DELAY_2 + 1],
+            delay_3: vec![0.0; DELAY_3 + 1],
+            delay_4: vec![0.0; DELAY_4 + 1],
+            prefilter: vec![0.0],
+            dumping_1: vec![0.0],
+            dumping_2: vec![0.0],
+            tank: vec![0.0, 0.0],
+            _t: PhantomData,
         };
-        let mut plate: Plate<'_, f64> = buffers.build(PlateParams::default());
+        let mut plate: Plate<'_, f64> = buffers.build();
 
         for t in 0..500 {
             let burst = if t < 50 {

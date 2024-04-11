@@ -54,30 +54,26 @@ where
 
 /// Nth order IIR filter.
 #[derive(Debug, PartialEq, Eq)]
-pub struct IIR<T, const ORDER: usize> {
+pub struct IIR<'a, T, const ORDER: usize> {
     a: [T; ORDER],
     b: T,
-    z: [T; ORDER],
+    z: &'a mut [T],
 }
 
-impl<T, const ORDER: usize> IIR<T, ORDER>
+impl<'a, T, const ORDER: usize> IIR<'a, T, ORDER>
 where
     T: num_traits::Num + Clone,
 {
     /// Creates a new instance.
-    pub fn new() -> Self {
-        Self::new_with_params(core::array::from_fn(|_| T::zero()), T::zero())
+    pub fn new(buffer: &'a mut [T]) -> Self {
+        Self::new_with_params(buffer, core::array::from_fn(|_| T::zero()), T::zero())
     }
 
-    pub fn new_with_params(a: [T; ORDER], b: T) -> Self {
+    pub fn new_with_params(buffer: &'a mut [T], a: [T; ORDER], b: T) -> Self {
         if ORDER < 1 {
             panic!()
         }
-        Self {
-            a,
-            b,
-            z: core::array::from_fn(|_| T::zero()),
-        }
+        Self { a, b, z: buffer }
     }
 
     pub fn set_params(&mut self, a: [T; ORDER], b: T) {
@@ -97,15 +93,6 @@ where
     }
 }
 
-impl<T, const ORDER: usize> Default for IIR<T, ORDER>
-where
-    T: num_traits::Num + Clone,
-{
-    fn default() -> Self {
-        IIR::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -120,7 +107,8 @@ mod tests {
 
     #[test]
     fn iir() {
-        let mut filter = IIR::new_with_params([0.5], 1.0);
+        let mut buffer = [0.0; 1];
+        let mut filter = IIR::new_with_params(&mut buffer, [0.5], 1.0);
         assert_eq!(1.0, filter.tick(1.0));
         assert_eq!(1.5, filter.tick(1.0));
     }
