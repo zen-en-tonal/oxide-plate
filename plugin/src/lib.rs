@@ -25,6 +25,8 @@ struct PlatePluginParams {
     pub damping: FloatParam,
     #[id = "decay"]
     pub decay: FloatParam,
+    #[id = "wet"]
+    pub wet: FloatParam,
 }
 
 impl Default for PlatePlugin {
@@ -118,6 +120,7 @@ impl Default for PlatePluginParams {
                     max: 0.9999,
                 },
             ),
+            wet: FloatParam::new("Wet", 0.500, FloatRange::Linear { min: 0.0, max: 1.0 }),
         }
     }
 }
@@ -188,10 +191,11 @@ impl Plugin for PlatePlugin {
 impl PlatePlugin {
     fn process_buffer(&mut self, buffer: &mut Buffer) -> ProcessStatus {
         let params: &PlatePluginParams = self.params.deref();
+        let wet = self.params.wet.smoothed.next();
         self.plate.set_params(params.into());
         for channel_samples in buffer.iter_samples() {
             for (i, sample) in channel_samples.into_iter().enumerate() {
-                *sample = self.plate.process_2ch(&[*sample])[i]
+                *sample = (1.0 - wet) * *sample + wet * self.plate.process_2ch(&[*sample])[i]
             }
         }
         ProcessStatus::Normal
