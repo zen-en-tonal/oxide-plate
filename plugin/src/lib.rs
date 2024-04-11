@@ -27,6 +27,8 @@ struct PlatePluginParams {
     pub decay: FloatParam,
     #[id = "wet"]
     pub wet: FloatParam,
+    #[id = "decay_mod"]
+    pub decay_mod: IntParam,
 }
 
 impl Default for PlatePlugin {
@@ -37,8 +39,8 @@ impl Default for PlatePlugin {
             input_diffusion_1_2: vec![0.0; INPUT_DIFFUSION_1_2 + 1],
             input_diffusion_2_1: vec![0.0; INPUT_DIFFUSION_2_1 + 1],
             input_diffusion_2_2: vec![0.0; INPUT_DIFFUSION_2_2 + 1],
-            decay_diffusion_1_1: vec![0.0; DECAY_DIFFUSION_1_1 + 1],
-            decay_diffusion_1_2: vec![0.0; DECAY_DIFFUSION_1_2 + 1],
+            decay_diffusion_1_1: vec![0.0; DECAY_DIFFUSION_1_1 + EXCURSION + 1],
+            decay_diffusion_1_2: vec![0.0; DECAY_DIFFUSION_1_2 + EXCURSION + 1],
             decay_diffusion_2_1: vec![0.0; DECAY_DIFFUSION_2_1 + 1],
             decay_diffusion_2_2: vec![0.0; DECAY_DIFFUSION_2_2 + 1],
             delay_1: vec![0.0; DELAY_1 + 1],
@@ -121,6 +123,14 @@ impl Default for PlatePluginParams {
                 },
             ),
             wet: FloatParam::new("Wet", 0.500, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            decay_mod: IntParam::new(
+                "Decay mod",
+                0,
+                IntRange::Linear {
+                    min: -(EXCURSION as i32 - 1),
+                    max: (EXCURSION as i32 - 1),
+                },
+            ),
         }
     }
 }
@@ -136,6 +146,7 @@ impl From<&PlatePluginParams> for PlateParams<f32> {
             decay_diffusion_2: value.decay_diffusion_2.smoothed.next(),
             damping: value.damping.smoothed.next(),
             decay: value.decay.smoothed.next(),
+            decay_modulation: value.decay_mod.smoothed.next() as isize,
         }
     }
 }

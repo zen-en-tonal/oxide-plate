@@ -103,6 +103,8 @@ pub struct PlateParams<T> {
     pub decay_diffusion_1: T,
     pub decay_diffusion_2: T,
 
+    pub decay_modulation: isize,
+
     pub damping: T,
 
     pub decay: T,
@@ -119,6 +121,7 @@ impl Default for PlateParams<f32> {
             decay_diffusion_2: 0.50,
             damping: 0.0005,
             decay: 0.50,
+            decay_modulation: 0,
         }
     }
 }
@@ -134,6 +137,7 @@ impl Default for PlateParams<f64> {
             decay_diffusion_2: 0.50,
             damping: 0.0005,
             decay: 0.50,
+            decay_modulation: 0,
         }
     }
 }
@@ -188,12 +192,16 @@ where
         self.decay_diffusion_1_1.set_params(
             -params.decay_diffusion_1.clone(),
             -params.decay_diffusion_1.clone(),
-            DECAY_DIFFUSION_1_1.try_into().unwrap(),
+            ((DECAY_DIFFUSION_1_1 as isize + params.decay_modulation) as usize)
+                .try_into()
+                .unwrap(),
         );
         self.decay_diffusion_1_2.set_params(
             -params.decay_diffusion_1.clone(),
             -params.decay_diffusion_1.clone(),
-            DECAY_DIFFUSION_1_2.try_into().unwrap(),
+            ((DECAY_DIFFUSION_1_2 as isize + params.decay_modulation) as usize)
+                .try_into()
+                .unwrap(),
         );
         self.decay_diffusion_2_1.set_params(
             params.decay_diffusion_2.clone(),
