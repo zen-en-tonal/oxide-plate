@@ -1,4 +1,4 @@
-# oxied-plate
+# oxide-plate
 
 Algorithmic reverb plugin written in Rust.
 
