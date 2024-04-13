@@ -63,7 +63,7 @@ impl Default for PlatePlugin {
 impl Default for PlatePluginParams {
     fn default() -> Self {
         Self {
-            predelay: IntParam::new("Pre delay", 1, IntRange::Linear { min: 1, max: 4095 }),
+            predelay: IntParam::new("Pre delay", 50, IntRange::Linear { min: 1, max: 4095 }),
             bandwidth: FloatParam::new(
                 "Bandwidth",
                 0.9995,
@@ -138,7 +138,7 @@ impl Default for PlatePluginParams {
 impl From<&PlatePluginParams> for PlateParams<f32> {
     fn from(value: &PlatePluginParams) -> Self {
         PlateParams {
-            predelay: value.predelay.smoothed.next() as usize,
+            predelay: value.predelay.value() as usize,
             bandwidth: value.bandwidth.smoothed.next(),
             input_diffusion_1: value.input_diffusion_1.smoothed.next(),
             input_diffusion_2: value.input_diffusion_2.smoothed.next(),
@@ -202,11 +202,15 @@ impl Plugin for PlatePlugin {
 impl PlatePlugin {
     fn process_buffer(&mut self, buffer: &mut Buffer) -> ProcessStatus {
         let params: &PlatePluginParams = self.params.deref();
-        let wet = self.params.wet.smoothed.next();
+        let wet = params.wet.smoothed.next();
         self.plate.set_params(params.into());
-        for channel_samples in buffer.iter_samples() {
-            for (i, sample) in channel_samples.into_iter().enumerate() {
-                *sample = (1.0 - wet) * *sample + wet * self.plate.process_2ch(&[*sample])[i]
+        for mut samples in buffer.iter_samples() {
+            // The following safe code will crash DAW.
+            // let inputs: Vec<f32> = samples.iter_mut().map(|x| *x).collect();
+            let inputs = unsafe { [*samples.get_unchecked_mut(0), *samples.get_unchecked_mut(1)] };
+            let plate_out = self.plate.process_2ch(inputs.as_ref());
+            for (out, y) in samples.iter_mut().zip(plate_out) {
+                *out = (1.0 - wet) * *out + wet * y;
             }
         }
         ProcessStatus::Normal
@@ -245,7 +249,15 @@ mod tests {
     fn basic() {
         let mut plugin = PlatePlugin::default();
 
+        let mut real_buffers = vec![vec![1.0; 44100 * 5]; 2];
         let mut buffer = Buffer::default();
+
+        unsafe {
+            buffer.set_slices(44100 * 5, |output_slices| {
+                let (first_channel, other_channels) = real_buffers.split_at_mut(1);
+                *output_slices = vec![&mut first_channel[0], &mut other_channels[0]];
+            })
+        };
 
         plugin.process_buffer(&mut buffer);
     }
