@@ -1,10 +1,5 @@
-#![cfg_attr(not(test), no_std)]
-
-pub mod instruments;
-
+use crate::instruments::*;
 use core::{fmt::Debug, marker::PhantomData};
-
-use instruments::*;
 
 pub struct PlateBuffers<T, V> {
     pub predelay: T,

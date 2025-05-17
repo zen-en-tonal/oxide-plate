@@ -5,5 +5,5 @@ Algorithmic reverb plugin written in Rust.
 ## Build
 
 ```console
-cargo xtask bundle oxide_plate_plugin
+cargo xtask bundle oxide_plate
 ```

@@ -1,7 +1,7 @@
 [package]
 name = "xtask"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-nih_plug_xtask = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "bb274976ca138289436b0bfa209b2c8c13244225" }
+nih_plug_xtask = { git = "https://github.com/robbert-vdh/nih-plug.git", rev = "d64b2ab9cfb94773c5ee4d0e72aef5921ee95d2d" }

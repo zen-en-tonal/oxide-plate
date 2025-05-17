@@ -2,6 +2,9 @@ use nih_plug::prelude::*;
 use plate::*;
 use std::{marker::PhantomData, ops::Deref, sync::Arc};
 
+mod instruments;
+mod plate;
+
 struct PlatePlugin {
     params: Arc<PlatePluginParams>,
     plate: Plate<'static, f32>,
@@ -152,7 +155,7 @@ impl From<&PlatePluginParams> for PlateParams<f32> {
 }
 
 impl Plugin for PlatePlugin {
-    const NAME: &'static str = "oxide_plate";
+    const NAME: &'static str = "oxide plate";
     const VENDOR: &'static str = "zen-en-tonal";
     const URL: &'static str = "";
     const EMAIL: &'static str = "";
